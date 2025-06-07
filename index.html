@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Holograficzne Godło RP</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            perspective: 1000px;
+            touch-action: none;
+        }
+        
+        .container {
+            position: relative;
+            width: 90vmin;
+            height: 90vmin;
+            transform-style: preserve-3d;
+        }
+        
+        .hologram {
+            width: 100%;
+            height: 100%;
+            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><path d="M50 15 L60 40 L85 40 L65 55 L75 85 L50 70 L25 85 L35 55 L15 40 L40 40 Z" fill="%2300a8ff" stroke="%23ffffff" stroke-width="2"/></svg>') center/contain no-repeat;
+            filter: 
+                drop-shadow(0 0 15px #00a8ff) 
+                drop-shadow(0 0 30px #0055ff)
+                brightness(1.8);
+            transform: translateZ(50px);
+            transition: transform 0.05s;
+        }
+        
+        .light-effect {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, rgba(0, 168, 255, 0.4) 0%, transparent 70%);
+            border-radius: 50%;
+            animation: pulse 2.5s infinite ease-in-out;
+            pointer-events: none;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 0.6; transform: scale(0.95); }
+            50% { opacity: 0.9; transform: scale(1.05); }
+        }
+        
+        .info {
+            position: absolute;
+            bottom: 20px;
+            color: rgba(255, 255, 255, 0.7);
+            font-family: Arial, sans-serif;
+            text-align: center;
+            width: 100%;
+            font-size: 14px;
+            z-index: 10;
+        }
+
+        .permission-prompt {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            color: white;
+            text-align: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        button {
+            background: #00a8ff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            margin-top: 20px;
+            border-radius: 30px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background: #0088cc;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="hologram" id="hologram"></div>
+        <div class="light-effect"></div>
+    </div>
+    <div class="info" id="info">Poruszaj telefonem, aby obracać godło</div>
+
+    <div class="permission-prompt" id="permissionPrompt">
+        <h2>Wymagana zgoda na dostęp do czujników</h2>
+        <p>Aby hologram działał poprawnie, musisz zezwolić na dostęp do żyroskopu Twojego urządzenia.</p>
+        <button id="enableSensor">AKTYWUJ HOLOGRAM</button>
+        <p id="errorMessage" style="color: #ff6b6b; margin-top: 15px; display: none;"></p>
+    </div>
+
+    <script>
+        const hologram = document.getElementById('hologram');
+        const permissionPrompt = document.getElementById('permissionPrompt');
+        const enableButton = document.getElementById('enableSensor');
+        const infoText = document.getElementById('info');
+        const errorMessage = document.getElementById('errorMessage');
+        const maxRotation = 20;
+        
+        // Funkcja sprawdzająca wsparcie dla żyroskopu
+        function isGyroSupported() {
+            return 'DeviceOrientationEvent' in window && 
+                typeof DeviceOrientationEvent.requestPermission === 'function';
+        }
+
+        // Funkcja aktywująca czujniki (dla iOS)
+        async function requestPermission() {
+            try {
+                if (DeviceOrientationEvent.requestPermission) {
+                    const permission = await DeviceOrientationEvent.requestPermission();
+                    if (permission === 'granted') {
+                        startGyro();
+                        permissionPrompt.style.display = 'none';
+                    } else {
+                        showError("Odmówiono dostępu do czujników. Odśwież stronę i spróbuj ponownie.");
+                    }
+                } else {
+                    startGyro();
+                    permissionPrompt.style.display = 'none';
+                }
+            } catch (err) {
+                showError(`Błąd: ${err.message}`);
+            }
+        }
+
+        // Funkcja obsługująca żyroskop
+        function startGyro() {
+            window.addEventListener('deviceorientation', handleOrientation);
+            infoText.textContent = "Hologram aktywowany! Poruszaj telefonem.";
+        }
+
+        // Obsługa danych z żyroskopu
+        function handleOrientation(event) {
+            const beta = event.beta;  // pochylenie przód/tył
+            const gamma = event.gamma; // pochylenie lewo/prawo
+            
+            // Stabilizacja wartości
+            const rotateX = clamp(-beta, -maxRotation, maxRotation);
+            const rotateY = clamp(gamma, -maxRotation, maxRotation);
+            
+            hologram.style.transform = `translateZ(50px) rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
+        }
+
+        // Funkcje pomocnicze
+        function clamp(value, min, max) {
+            return Math.min(Math.max(value, min), max);
+        }
+
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.style.display = 'block';
+        }
+
+        // Inicjalizacja
+        if (!isGyroSupported()) {
+            permissionPrompt.innerHTML = `
+                <h2>Twoje urządzenie nie obsługuje żyroskopu</h2>
+                <p>Ta funkcja wymaga urządzenia z czujnikiem orientacji (smartfon/tablet).</p>
+                <p>Upewnij się, że otwierasz tę stronę w nowoczesnej przeglądarce (Chrome, Safari).</p>
+            `;
+        } else {
+            // Automatyczna aktywacja na Androidzie/desktopie
+            if (typeof DeviceOrientationEvent.requestPermission !== 'function') {
+                window.addEventListener('deviceorientation', () => {
+                    permissionPrompt.style.display = 'none';
+                });
+                setTimeout(() => {
+                    if (permissionPrompt.style.display !== 'none') {
+                        showError("Oczekiwanie na dane z czujników...");
+                    }
+                }, 2000);
+            }
+        }
+
+        enableButton.addEventListener('click', requestPermission);
+    </script>
+</body>
+</html>
