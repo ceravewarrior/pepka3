@@ -24,29 +24,33 @@
 <body>
     <script>
         // ===== KONFIGURACJA CZUŁOŚCI =====
-        // Modyfikuj te wartości aby zmienić czułość
         const SENSITIVITY = {
-            hue: 0.8,        // Czułość zmiany koloru (0.1 - subtelne, 2.0 - agresywne)
-            angle: 0.6,      // Czułość obrotu gradientu (0.1 - wolny, 1.5 - szybki)
-            threshold: 0.1   // NIŻSZY próg czułości (0.1 - bardzo czułe)
+            hue: 0.8,        // Czułość zmiany koloru
+            angle: 2.5,       // ZWIĘKSZONA czułość obrotu gradientu
+            threshold: 0.1    // Niski próg czułości
         };
         
         // ===== KONFIGURACJA KOLORÓW =====
-        const FIXED_LIGHTNESS = 30;  // Stała wartość jasności (0-100)
-        const SATURATION = 85;       // Stałe nasycenie kolorów
+        const FIXED_LIGHTNESS = 30;  // Stała jasność
+        const SATURATION = 85;        // Stałe nasycenie
         
         // Stan początkowy
         let lastBeta = 0;
         let lastGamma = 0;
-        let isFirstMove = true;
+        let currentAngle = 135; // Początkowy kąt gradientu
         
         // Funkcja aktualizująca tło
         function updateBackground(beta, gamma) {
-            // Obliczanie koloru
+            // Obliczanie zmiany koloru
             const hue = Math.abs(beta * SENSITIVITY.hue + gamma * SENSITIVITY.hue) % 360;
             
-            // Poprawne obliczanie kąta gradientu
-            const angle = (Math.atan2(gamma, beta) * 180 / Math.PI + 360) % 360;
+            // Obliczanie zmiany kąta na podstawie ruchu
+            const deltaGamma = gamma - lastGamma;
+            const deltaBeta = beta - lastBeta;
+            
+            // Aktualizacja kąta gradientu
+            currentAngle = (currentAngle + (deltaGamma + deltaBeta) * SENSITIVITY.angle) % 360;
+            if (currentAngle < 0) currentAngle += 360;
             
             // Generowanie kolorów
             const color1 = `hsl(${hue}, ${SATURATION}%, ${FIXED_LIGHTNESS}%)`;
@@ -55,7 +59,7 @@
             
             // Aktualizacja tła
             document.body.style.background = 
-                `linear-gradient(${angle}deg, ${color1}, ${color2}, ${color3})`;
+                `linear-gradient(${currentAngle}deg, ${color1}, ${color2}, ${color3})`;
         }
 
         // Obsługa danych z żyroskopu
@@ -63,21 +67,12 @@
             const beta = event.beta || 0;   // Pochylenie przód/tył
             const gamma = event.gamma || 0;  // Pochylenie lewo/prawo
             
-            // Dla pierwszego ruchu - zawsze aktualizuj
-            if (isFirstMove) {
-                lastBeta = beta;
-                lastGamma = gamma;
-                updateBackground(beta, gamma);
-                isFirstMove = false;
-                return;
-            }
-            
             // Sprawdź czy ruch przekroczył próg czułości
             const betaDiff = Math.abs(beta - lastBeta);
             const gammaDiff = Math.abs(gamma - lastGamma);
             
             if (betaDiff > SENSITIVITY.threshold || gammaDiff > SENSITIVITY.threshold) {
-                // Zapisz ostatnią pozycję
+                // Zapisz aktualną pozycję
                 lastBeta = beta;
                 lastGamma = gamma;
                 
@@ -106,7 +101,7 @@
         window.addEventListener('DOMContentLoaded', () => {
             // Ustawienie początkowego tła
             document.body.style.background = 
-                `linear-gradient(135deg, 
+                `linear-gradient(${currentAngle}deg, 
                 hsl(0, ${SATURATION}%, ${FIXED_LIGHTNESS}%), 
                 hsl(120, ${SATURATION}%, ${FIXED_LIGHTNESS + 5}%), 
                 hsl(240, ${SATURATION}%, ${FIXED_LIGHTNESS - 5}%))`;
