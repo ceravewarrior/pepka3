@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Dynamiczne Tło</title>
+    <title>Dynamiczne Tło 3D</title>
     <style>
         * {
             margin: 0;
@@ -15,7 +15,9 @@
             overflow: hidden;
             background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460);
             height: 100vh;
-            transition: background 1s ease-out;
+            transition: 
+                background 1s ease-out,
+                transform 0.1s linear;
             touch-action: none;
             font-family: 'Segoe UI', Tahoma, sans-serif;
         }
@@ -23,68 +25,101 @@
 </head>
 <body>
     <script>
-        // Funkcja zmieniająca tło na podstawie pozycji urządzenia
-        function updateBackground(beta, gamma) {
-            // Obliczanie kolorów na podstawie kątów
-            const hue = (Math.abs(beta * 2 + gamma * 3)) % 360;
-            const saturation = 85 + Math.abs(gamma) % 10;
-            const lightness = 20 + Math.abs(beta) % 15;
+        // Parametry kontrolujące czułość
+        const SENSITIVITY = {
+            hue: 0.8,
+            saturation: 0.3,
+            lightness: 0.2,
+            angle: 0.5
+        };
+
+        // Stan czujników
+        let deviceOrientation = {
+            beta: 0,
+            gamma: 0,
+            angle: 135
+        };
+
+        // Funkcja aktualizująca tło
+        function updateBackground() {
+            const h = (Math.abs(
+                deviceOrientation.beta * SENSITIVITY.hue + 
+                deviceOrientation.gamma * SENSITIVITY.hue * 2
+            )) % 360;
             
-            // Tworzenie płynnego gradientu
-            const color1 = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
-            const color2 = `hsl(${(hue + 120) % 360}, ${saturation}%, ${lightness + 8}%)`;
-            const color3 = `hsl(${(hue + 240) % 360}, ${saturation}%, ${lightness - 5}%)`;
+            const s = 85 + Math.abs(deviceOrientation.gamma) * SENSITIVITY.saturation;
+            const l = 20 + Math.abs(deviceOrientation.beta) * SENSITIVITY.lightness;
             
-            // Aktualizacja tła
+            // Dynamiczny kąt gradientu
+            const angle = deviceOrientation.angle;
+            
+            // Trójwymiarowy gradient
+            const color1 = `hsl(${h}, ${s}%, ${l}%)`;
+            const color2 = `hsl(${(h + 120) % 360}, ${s}%, ${l + 8}%)`;
+            const color3 = `hsl(${(h + 240) % 360}, ${s}%, ${l - 5}%)`;
+            
             document.body.style.background = 
-                `linear-gradient(135deg, ${color1}, ${color2}, ${color3})`;
+                `linear-gradient(${angle}deg, ${color1}, ${color2}, ${color3})`;
         }
 
         // Obsługa danych z żyroskopu
         function handleOrientation(event) {
-            const beta = event.beta || 0;   // Pochylenie przód/tył
-            const gamma = event.gamma || 0;  // Pochylenie lewo/prawo
+            deviceOrientation.beta = event.beta || 0;
+            deviceOrientation.gamma = event.gamma || 0;
             
-            // Aktualizacja tła z ograniczeniem częstotliwości
-            requestAnimationFrame(() => updateBackground(beta, gamma));
+            // Obliczanie kąta na podstawie ruchu
+            const rawAngle = Math.atan2(
+                deviceOrientation.gamma, 
+                deviceOrientation.beta
+            ) * 180 / Math.PI;
+            
+            // Normalizacja kąta (0-360)
+            deviceOrientation.angle = (rawAngle + 360) % 360;
+            
+            updateBackground();
         }
 
-        // Automatyczna aktywacja żyroskopu
+        // Automatyczna aktywacja czujników
         async function initSensors() {
             try {
-                // iOS - automatyczne żądanie uprawnień
                 if (typeof DeviceOrientationEvent.requestPermission === 'function') {
                     const permission = await DeviceOrientationEvent.requestPermission();
                     if (permission === 'granted') {
                         window.addEventListener('deviceorientation', handleOrientation);
                     }
-                } 
-                // Android i inne przeglądarki
-                else {
+                } else {
                     window.addEventListener('deviceorientation', handleOrientation);
                 }
             } catch (error) {
-                console.log("Brak dostępu do czujników");
+                console.log("Aktywowano tryb animacji bez czujników");
             }
         }
 
-        // Uruchomienie po załadowaniu strony
-        window.addEventListener('DOMContentLoaded', () => {
-            // Początkowa animacja tła
+        // Animacja wstępna
+        function startBackgroundAnimation() {
             let hue = 0;
-            const initialAnimation = () => {
+            let angle = 135;
+            
+            const animate = () => {
                 hue = (hue + 0.3) % 360;
+                angle = (angle + 0.2) % 360;
+                
                 const color = `hsl(${hue}, 85%, 20%)`;
                 const color2 = `hsl(${(hue + 120) % 360}, 85%, 25%)`;
                 const color3 = `hsl(${(hue + 240) % 360}, 85%, 15%)`;
+                
                 document.body.style.background = 
-                    `linear-gradient(135deg, ${color}, ${color2}, ${color3})`;
-                requestAnimationFrame(initialAnimation);
+                    `linear-gradient(${angle}deg, ${color}, ${color2}, ${color3})`;
+                
+                requestAnimationFrame(animate);
             };
             
-            initialAnimation();
-            
-            // Uruchomienie czujników z krótkim opóźnieniem
+            animate();
+        }
+
+        // Inicjalizacja
+        window.addEventListener('DOMContentLoaded', () => {
+            startBackgroundAnimation();
             setTimeout(initSensors, 1000);
         });
     </script>
