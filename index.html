@@ -15,7 +15,7 @@
             overflow: hidden;
             background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460);
             height: 100vh;
-            transition: background 0.5s ease;
+            transition: background 1s ease-out;
             touch-action: none;
             font-family: 'Segoe UI', Tahoma, sans-serif;
         }
@@ -23,69 +23,69 @@
 </head>
 <body>
     <script>
-        // Funkcja zmieniająca tło na podstawie kątów
-        function changeBackgroundColor(beta, gamma) {
-            // Mapowanie kątów na wartości kolorów
+        // Funkcja zmieniająca tło na podstawie pozycji urządzenia
+        function updateBackground(beta, gamma) {
+            // Obliczanie kolorów na podstawie kątów
             const hue = (Math.abs(beta * 2 + gamma * 3)) % 360;
-            const sat = 80 + Math.abs(gamma) % 20;
-            const light = 15 + Math.abs(beta) % 10;
+            const saturation = 85 + Math.abs(gamma) % 10;
+            const lightness = 20 + Math.abs(beta) % 15;
             
-            // Obliczanie dynamicznego kąta gradientu
-            const angle = (Math.atan2(gamma, beta) * 180 / Math.PI + 360) % 360;
+            // Tworzenie płynnego gradientu
+            const color1 = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+            const color2 = `hsl(${(hue + 120) % 360}, ${saturation}%, ${lightness + 8}%)`;
+            const color3 = `hsl(${(hue + 240) % 360}, ${saturation}%, ${lightness - 5}%)`;
             
-            const color = `hsl(${hue}, ${sat}%, ${light}%)`;
-            const color2 = `hsl(${(hue + 120) % 360}, ${sat}%, ${light + 5}%)`;
-            const color3 = `hsl(${(hue + 240) % 360}, ${sat}%, ${light - 5}%)`;
-            
-            // Gradient z dynamicznym kątem
+            // Aktualizacja tła
             document.body.style.background = 
-                `linear-gradient(${angle}deg, ${color}, ${color2}, ${color3})`;
+                `linear-gradient(135deg, ${color1}, ${color2}, ${color3})`;
         }
 
         // Obsługa danych z żyroskopu
         function handleOrientation(event) {
-            const beta = event.beta || 0;  // pochylenie przód/tył
-            const gamma = event.gamma || 0; // pochylenie lewo/prawo
+            const beta = event.beta || 0;   // Pochylenie przód/tył
+            const gamma = event.gamma || 0;  // Pochylenie lewo/prawo
             
-            changeBackgroundColor(beta, gamma);
+            // Aktualizacja tła z ograniczeniem częstotliwości
+            requestAnimationFrame(() => updateBackground(beta, gamma));
         }
 
-        // Funkcja do uruchomienia żyroskopu
-        async function startGyro() {
+        // Automatyczna aktywacja żyroskopu
+        async function initSensors() {
             try {
+                // iOS - automatyczne żądanie uprawnień
                 if (typeof DeviceOrientationEvent.requestPermission === 'function') {
                     const permission = await DeviceOrientationEvent.requestPermission();
                     if (permission === 'granted') {
                         window.addEventListener('deviceorientation', handleOrientation);
                     }
-                } else {
+                } 
+                // Android i inne przeglądarki
+                else {
                     window.addEventListener('deviceorientation', handleOrientation);
                 }
             } catch (error) {
-                console.error("Błąd czujników:", error);
+                console.log("Brak dostępu do czujników");
             }
         }
 
-        // Automatyczna inicjalizacja
-        document.addEventListener('DOMContentLoaded', () => {
-            // Uruchomienie czujników
-            setTimeout(startGyro, 500);
-            
-            // Animacja wstępna tła
+        // Uruchomienie po załadowaniu strony
+        window.addEventListener('DOMContentLoaded', () => {
+            // Początkowa animacja tła
             let hue = 0;
-            function animateBackground() {
-                hue = (hue + 0.2) % 360;
-                const angle = (hue * 2) % 360;
-                const color = `hsl(${hue}, 80%, 15%)`;
-                const color2 = `hsl(${(hue + 120) % 360}, 80%, 20%)`;
-                const color3 = `hsl(${(hue + 240) % 360}, 80%, 10%)`;
-                
+            const initialAnimation = () => {
+                hue = (hue + 0.3) % 360;
+                const color = `hsl(${hue}, 85%, 20%)`;
+                const color2 = `hsl(${(hue + 120) % 360}, 85%, 25%)`;
+                const color3 = `hsl(${(hue + 240) % 360}, 85%, 15%)`;
                 document.body.style.background = 
-                    `linear-gradient(${angle}deg, ${color}, ${color2}, ${color3})`;
-                requestAnimationFrame(animateBackground);
-            }
+                    `linear-gradient(135deg, ${color}, ${color2}, ${color3})`;
+                requestAnimationFrame(initialAnimation);
+            };
             
-            animateBackground();
+            initialAnimation();
+            
+            // Uruchomienie czujników z krótkim opóźnieniem
+            setTimeout(initSensors, 1000);
         });
     </script>
 </body>
