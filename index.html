@@ -15,7 +15,7 @@
             overflow: hidden;
             background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460);
             height: 100vh;
-            transition: background 0.5s ease-out;
+            transition: background 0.5s ease;
             touch-action: none;
             font-family: 'Segoe UI', Tahoma, sans-serif;
         }
@@ -23,66 +23,35 @@
 </head>
 <body>
     <script>
-        // ===== KONFIGURACJA CZUŁOŚCI =====
-        const SENSITIVITY = {
-            hue: 0.8,        // Czułość zmiany koloru
-            angle: 2.5,       // ZWIĘKSZONA czułość obrotu gradientu
-            threshold: 0.1    // Niski próg czułości
-        };
-        
-        // ===== KONFIGURACJA KOLORÓW =====
-        const FIXED_LIGHTNESS = 30;  // Stała jasność
-        const SATURATION = 85;        // Stałe nasycenie
-        
-        // Stan początkowy
-        let lastBeta = 0;
-        let lastGamma = 0;
-        let currentAngle = 135; // Początkowy kąt gradientu
-        
-        // Funkcja aktualizująca tło
-        function updateBackground(beta, gamma) {
-            // Obliczanie zmiany koloru
-            const hue = Math.abs(beta * SENSITIVITY.hue + gamma * SENSITIVITY.hue) % 360;
+        // Funkcja zmieniająca tło na podstawie kątów
+        function changeBackgroundColor(beta, gamma) {
+            // Mapowanie kątów na wartości kolorów
+            const hue = (Math.abs(beta * 2 + gamma * 3)) % 360;
+            const sat = 80 + Math.abs(gamma) % 20;
+            const light = 15 + Math.abs(beta) % 10;
             
-            // Obliczanie zmiany kąta na podstawie ruchu
-            const deltaGamma = gamma - lastGamma;
-            const deltaBeta = beta - lastBeta;
+            // Obliczanie dynamicznego kąta gradientu
+            const angle = (Math.atan2(gamma, beta) * 180 / Math.PI + 360) % 360;
             
-            // Aktualizacja kąta gradientu
-            currentAngle = (currentAngle + (deltaGamma + deltaBeta) * SENSITIVITY.angle) % 360;
-            if (currentAngle < 0) currentAngle += 360;
+            const color = `hsl(${hue}, ${sat}%, ${light}%)`;
+            const color2 = `hsl(${(hue + 120) % 360}, ${sat}%, ${light + 5}%)`;
+            const color3 = `hsl(${(hue + 240) % 360}, ${sat}%, ${light - 5}%)`;
             
-            // Generowanie kolorów
-            const color1 = `hsl(${hue}, ${SATURATION}%, ${FIXED_LIGHTNESS}%)`;
-            const color2 = `hsl(${(hue + 120) % 360}, ${SATURATION}%, ${FIXED_LIGHTNESS + 5}%)`;
-            const color3 = `hsl(${(hue + 240) % 360}, ${SATURATION}%, ${FIXED_LIGHTNESS - 5}%)`;
-            
-            // Aktualizacja tła
+            // Gradient z dynamicznym kątem
             document.body.style.background = 
-                `linear-gradient(${currentAngle}deg, ${color1}, ${color2}, ${color3})`;
+                `linear-gradient(${angle}deg, ${color}, ${color2}, ${color3})`;
         }
 
         // Obsługa danych z żyroskopu
         function handleOrientation(event) {
-            const beta = event.beta || 0;   // Pochylenie przód/tył
-            const gamma = event.gamma || 0;  // Pochylenie lewo/prawo
+            const beta = event.beta || 0;  // pochylenie przód/tył
+            const gamma = event.gamma || 0; // pochylenie lewo/prawo
             
-            // Sprawdź czy ruch przekroczył próg czułości
-            const betaDiff = Math.abs(beta - lastBeta);
-            const gammaDiff = Math.abs(gamma - lastGamma);
-            
-            if (betaDiff > SENSITIVITY.threshold || gammaDiff > SENSITIVITY.threshold) {
-                // Zapisz aktualną pozycję
-                lastBeta = beta;
-                lastGamma = gamma;
-                
-                // Aktualizuj tło
-                updateBackground(beta, gamma);
-            }
+            changeBackgroundColor(beta, gamma);
         }
 
-        // Automatyczna aktywacja czujników
-        async function initSensors() {
+        // Funkcja do uruchomienia żyroskopu
+        async function startGyro() {
             try {
                 if (typeof DeviceOrientationEvent.requestPermission === 'function') {
                     const permission = await DeviceOrientationEvent.requestPermission();
@@ -93,21 +62,30 @@
                     window.addEventListener('deviceorientation', handleOrientation);
                 }
             } catch (error) {
-                console.log("Aktywowano tryb bez czujników");
+                console.error("Błąd czujników:", error);
             }
         }
 
-        // Uruchomienie po załadowaniu strony
-        window.addEventListener('DOMContentLoaded', () => {
-            // Ustawienie początkowego tła
-            document.body.style.background = 
-                `linear-gradient(${currentAngle}deg, 
-                hsl(0, ${SATURATION}%, ${FIXED_LIGHTNESS}%), 
-                hsl(120, ${SATURATION}%, ${FIXED_LIGHTNESS + 5}%), 
-                hsl(240, ${SATURATION}%, ${FIXED_LIGHTNESS - 5}%))`;
-            
+        // Automatyczna inicjalizacja
+        document.addEventListener('DOMContentLoaded', () => {
             // Uruchomienie czujników
-            setTimeout(initSensors, 100);
+            setTimeout(startGyro, 500);
+            
+            // Animacja wstępna tła
+            let hue = 0;
+            function animateBackground() {
+                hue = (hue + 0.2) % 360;
+                const angle = (hue * 2) % 360;
+                const color = `hsl(${hue}, 80%, 15%)`;
+                const color2 = `hsl(${(hue + 120) % 360}, 80%, 20%)`;
+                const color3 = `hsl(${(hue + 240) % 360}, 80%, 10%)`;
+                
+                document.body.style.background = 
+                    `linear-gradient(${angle}deg, ${color}, ${color2}, ${color3})`;
+                requestAnimationFrame(animateBackground);
+            }
+            
+            animateBackground();
         });
     </script>
 </body>
