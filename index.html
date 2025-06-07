@@ -28,7 +28,7 @@
         const SENSITIVITY = {
             hue: 0.8,        // Czułość zmiany koloru (0.1 - subtelne, 2.0 - agresywne)
             angle: 0.6,      // Czułość obrotu gradientu (0.1 - wolny, 1.5 - szybki)
-            threshold: 0.5   // Próg wykrywania ruchu (0.1 - bardzo czułe, 1.0 - mniej czułe)
+            threshold: 0.1   // NIŻSZY próg czułości (0.1 - bardzo czułe)
         };
         
         // ===== KONFIGURACJA KOLORÓW =====
@@ -38,22 +38,17 @@
         // Stan początkowy
         let lastBeta = 0;
         let lastGamma = 0;
+        let isFirstMove = true;
         
         // Funkcja aktualizująca tło
         function updateBackground(beta, gamma) {
-            // Obliczanie kolorów z uwzględnieniem czułości
-            const hue = (Math.abs(
-                beta * 2 * SENSITIVITY.hue + 
-                gamma * 3 * SENSITIVITY.hue
-            )) % 360;
+            // Obliczanie koloru
+            const hue = Math.abs(beta * SENSITIVITY.hue + gamma * SENSITIVITY.hue) % 360;
             
-            // Obliczanie kąta z uwzględnieniem czułości
-            const angle = (Math.abs(
-                beta * SENSITIVITY.angle + 
-                gamma * 2 * SENSITIVITY.angle
-            )) % 360;
+            // Poprawne obliczanie kąta gradientu
+            const angle = (Math.atan2(gamma, beta) * 180 / Math.PI + 360) % 360;
             
-            // Generowanie kolorów ze stałą jasnością
+            // Generowanie kolorów
             const color1 = `hsl(${hue}, ${SATURATION}%, ${FIXED_LIGHTNESS}%)`;
             const color2 = `hsl(${(hue + 120) % 360}, ${SATURATION}%, ${FIXED_LIGHTNESS + 5}%)`;
             const color3 = `hsl(${(hue + 240) % 360}, ${SATURATION}%, ${FIXED_LIGHTNESS - 5}%)`;
@@ -68,18 +63,27 @@
             const beta = event.beta || 0;   // Pochylenie przód/tył
             const gamma = event.gamma || 0;  // Pochylenie lewo/prawo
             
-            // Sprawdź czy ruch przekroczył próg czułości
-            if (Math.abs(beta - lastBeta) < SENSITIVITY.threshold && 
-                Math.abs(gamma - lastGamma) < SENSITIVITY.threshold) {
+            // Dla pierwszego ruchu - zawsze aktualizuj
+            if (isFirstMove) {
+                lastBeta = beta;
+                lastGamma = gamma;
+                updateBackground(beta, gamma);
+                isFirstMove = false;
                 return;
             }
             
-            // Zapisz ostatnią pozycję
-            lastBeta = beta;
-            lastGamma = gamma;
+            // Sprawdź czy ruch przekroczył próg czułości
+            const betaDiff = Math.abs(beta - lastBeta);
+            const gammaDiff = Math.abs(gamma - lastGamma);
             
-            // Aktualizuj tło
-            updateBackground(beta, gamma);
+            if (betaDiff > SENSITIVITY.threshold || gammaDiff > SENSITIVITY.threshold) {
+                // Zapisz ostatnią pozycję
+                lastBeta = beta;
+                lastGamma = gamma;
+                
+                // Aktualizuj tło
+                updateBackground(beta, gamma);
+            }
         }
 
         // Automatyczna aktywacja czujników
